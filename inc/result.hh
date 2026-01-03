@@ -1,3 +1,14 @@
+/**
+ * @file result.hh
+ * @author Bartosz Ksel (bartoszmateusz.ksel@gmail.com)
+ * @brief Provides a simple Result type similar to std::expected from C++23.
+ *        This implementation is inspired by Rust's Result<T, E> type.
+ * @version 0.1
+ * @date 2026-01-03
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
 #include <cassert>
 #include <type_traits>
 #include <utility>
@@ -6,10 +17,6 @@
 #include <cstdlib>
 
 namespace adt {
-
-enum class Inspectability { Inspectable, NonInspectable };
-
-static constexpr Inspectability NonInspectable = Inspectability::NonInspectable;
 
 template <typename E> class Error {
   E error;
@@ -35,11 +42,13 @@ public:
 
 /**
  * @brief A simple Result type representing either a value of type T or an
- * error of type E.
+ *        error of type E.
  *
  * @note This is an implementation aiming to mimic the behavior of
- * Expected/Result type std::expected introduced in C++23.
- * 
+ *       Expected/Result type std::expected introduced in C++23. It is inspired
+ *       by Rust's Result<T, E> type. It requires helper types Ok<T> and Error<E>
+ *       to construct success and error states, respectively.
+ *
  * @warning When T and E are the same type, the user must handle Ok<T> and
  *          Error<E> explicitly to avoid ambiguity. Otherwise, accessing value()
  *          or error() will provide the underlying T or E directly.
@@ -70,31 +79,29 @@ public:
   [[nodiscard]] constexpr decltype(auto) value() & {
     ensure_value();
     if constexpr (std::is_same_v<T, E>) {
-      return std::get<Ok<T>>(_data); // Zwraca Ok<T>&
+      return std::get<Ok<T>>(_data);
     } else {
-      return std::get<Ok<T>>(_data).get(); // Zwraca T&
+      return std::get<Ok<T>>(_data).get();
     }
   }
 
   [[nodiscard]] constexpr decltype(auto) value() const & {
     ensure_value();
     if constexpr (std::is_same_v<T, E>) {
-      return std::get<Ok<T>>(_data); // Zwraca const Ok<T>&
+      return std::get<Ok<T>>(_data);
     } else {
-      return std::get<Ok<T>>(_data).get(); // Zwraca const T&
+      return std::get<Ok<T>>(_data).get();
     }
   }
 
   [[nodiscard]] constexpr decltype(auto) value() && {
     ensure_value();
     if constexpr (std::is_same_v<T, E>) {
-      return std::get<Ok<T>>(std::move(_data)); // Zwraca Ok<T>&&
+      return std::get<Ok<T>>(std::move(_data));
     } else {
-      return std::get<Ok<T>>(std::move(_data)).get(); // Zwraca T&&
+      return std::get<Ok<T>>(std::move(_data)).get();
     }
   }
-
-  // --- ERROR (Analogicznie) ---
 
   [[nodiscard]] constexpr decltype(auto) error() & {
     ensure_error();

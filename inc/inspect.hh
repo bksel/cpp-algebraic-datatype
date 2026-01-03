@@ -17,7 +17,7 @@
 #include <utility>
 #include <variant>
 
-namespace algebraic_type {
+namespace adt {
 
 template <class... Ts> struct overloaded : Ts... {
   using Ts::operator()...;
@@ -39,11 +39,8 @@ template <typename T> using remove_cvref_t = typename remove_cvref<T>::type;
 
 namespace diagnostic {
 
-// Helper, żeby static_assert nie odpalał się zawsze, a tylko przy
-// instancjalizacji
 template <typename T> struct always_false : std::false_type {};
 
-// Twoja struktura błędu - użyjemy jej do wyświetlenia typu
 template <typename T> struct MISSING_HANDLER_FOR_TYPE {
   static constexpr bool value = false;
 };
@@ -168,33 +165,6 @@ struct is_expected
           bool, is_expected_impl<detail::remove_cvref_t<T>>::value &&
                     !is_optional<T>::value> {};
 
-// Helper do sprawdzenia wyczerpalności Varianta
-template <typename Visitor, typename Variant>
-struct is_exhaustive_variant : std::false_type {};
-
-template <typename Visitor, typename... Alts>
-struct is_exhaustive_variant<Visitor, std::variant<Alts...>> {
-  // C++17 Fold Expression: (is_invocable && ... && is_invocable)
-  static constexpr bool value = (std::is_invocable_v<Visitor, Alts> && ...);
-};
-
-// Helper do sprawdzenia wyczerpalności Optionala
-template <typename Visitor, typename Opt> struct is_exhaustive_optional {
-  using ValueType = typename detail::remove_cvref_t<Opt>::value_type;
-  static constexpr bool value =
-      std::is_invocable_v<Visitor, ValueType> && // Obsługa wartości
-      std::is_invocable_v<Visitor>;              // Obsługa None
-};
-
-// Helper do sprawdzenia Result/Expected
-template <typename Visitor, typename Exp> struct is_exhaustive_expected {
-  // Używamy declval, żeby udawać obiekty
-  using ValT = decltype(std::declval<Exp>().value());
-  using ErrT = decltype(std::declval<Exp>().error());
-
-  static constexpr bool value =
-      std::is_invocable_v<Visitor, ValT> && std::is_invocable_v<Visitor, ErrT>;
-};
 } // namespace traits
 
 /**
@@ -242,14 +212,15 @@ template <typename R = detail::deduce_return_type,
           typename Variant, // Correct version
           typename... Lambdas,
           // Condition 1: It is a variant
-          std::enable_if_t<traits::is_variant<Variant>::value, int> = 0,
-          // Condition 2: Handlers are complete (IsExhaustive == true)
-          std::enable_if_t<traits::is_exhaustive_variant<
-                               overloaded<detail::remove_cvref_t<Lambdas>...>,
-                               detail::remove_cvref_t<Variant>>::value,
-                           int> = 0>
+          std::enable_if_t<traits::is_variant<Variant>::value, int> = 0>
 [[nodiscard]]
 constexpr auto Inspect(Variant &&variant, Lambdas &&...lambdas) {
+  // --- validation start
+  using VisitorType = overloaded<detail::remove_cvref_t<Lambdas>...>;
+  using RawVariant = detail::remove_cvref_t<Variant>;
+  diagnostic::variant_validator<VisitorType, RawVariant>::validate();
+  // --- validation end
+
   // It is safe to proceed
   if constexpr (std::is_same_v<R, detail::deduce_return_type>) {
     return std::visit(overloaded{std::forward<Lambdas>(lambdas)...},
@@ -258,26 +229,6 @@ constexpr auto Inspect(Variant &&variant, Lambdas &&...lambdas) {
     return R{std::visit(overloaded{std::forward<Lambdas>(lambdas)...},
                         std::forward<Variant>(variant))};
   }
-}
-
-// --- SFINAE failure version: Handlers are INCOMPLETE (IsExhaustive == false)
-template <typename R = detail::deduce_return_type, typename Variant,
-          typename... Lambdas,
-          // Condition 1: It is a variant
-          std::enable_if_t<traits::is_variant<Variant>::value, int> = 0,
-          // Condition 2: Handlers are INCOMPLETE (IsExhaustive == false)
-          std::enable_if_t<!traits::is_exhaustive_variant< // <--- Consider
-                                                           // exclamation mark
-                               overloaded<detail::remove_cvref_t<Lambdas>...>,
-                               detail::remove_cvref_t<Variant>>::value,
-                           int> = 0>
-constexpr void Inspect(Variant &&, Lambdas &&...) {
-  // It is used to display the error
-
-  using VisitorType = overloaded<detail::remove_cvref_t<Lambdas>...>;
-  using RawVariant = detail::remove_cvref_t<Variant>;
-
-  diagnostic::variant_validator<VisitorType, RawVariant>::validate();
 }
 
 /**
@@ -309,7 +260,7 @@ constexpr void Inspect(Variant &&, Lambdas &&...) {
  *               << Inspect<std::string>(
  *                      my_opt,
  *                      [](int value) { return "Value: " +
- * std::to_string(value); },
+ *                                        std::to_string(value); },
  *                      []() { return "No Value"; })
  *               << std::endl;
  * }
@@ -317,12 +268,7 @@ constexpr void Inspect(Variant &&, Lambdas &&...) {
  */
 template <typename R = detail::deduce_return_type, typename Opt,
           typename... Lambdas,
-          std::enable_if_t<traits::is_optional<Opt>::value, int> = 0,
-          // Checking exhaustiveness
-          std::enable_if_t<traits::is_exhaustive_optional<
-                               overloaded<detail::remove_cvref_t<Lambdas>...>,
-                               detail::remove_cvref_t<Opt>>::value,
-                           int> = 0>
+          std::enable_if_t<traits::is_optional<Opt>::value, int> = 0>
 [[nodiscard]]
 constexpr auto Inspect(Opt &&opt, Lambdas &&...lambdas) noexcept {
 
@@ -351,22 +297,6 @@ constexpr auto Inspect(Opt &&opt, Lambdas &&...lambdas) noexcept {
   }
 }
 
-// --- SFINAE failure version: Handlers are INCOMPLETE (IsExhaustive == false)
-template <typename R = detail::deduce_return_type, typename Opt,
-          typename... Lambdas,
-          std::enable_if_t<traits::is_optional<Opt>::value, int> = 0,
-          // Checking LACK of exhaustiveness
-          std::enable_if_t<!traits::is_exhaustive_optional< // <--- NEGACJA
-                               overloaded<detail::remove_cvref_t<Lambdas>...>,
-                               detail::remove_cvref_t<Opt>>::value,
-                           int> = 0>
-constexpr void Inspect(Opt &&, Lambdas &&...) {
-  // Diagnostyka
-  using VisitorType = overloaded<detail::remove_cvref_t<Lambdas>...>;
-  using RawOpt = detail::remove_cvref_t<Opt>;
-  diagnostic::optional_validator<VisitorType, RawOpt>::validate();
-}
-
 /**
  * @brief Inspects an Expected/Result type and applies the appropriate lambda
  * based on whether it contains a value or an error.
@@ -377,12 +307,8 @@ constexpr void Inspect(Opt &&, Lambdas &&...) {
  * @return The result of the invoked lambda, either wrapped in R or deduced.
  *
  * @warning This function assumes that at least one lambda is provided: one for
- * the value case and optionally ontemplate <
-    typename R = detail::deduce_return_type, typename Opt, typename... Lambdas,
-    std::enable_if_t<
-        traits::is_optional<Opt>::value && (sizeof...(Lambdas) >= 1), int> = 0>
-[[nodiscard]]e for the error case. If not, it will result
- * in a compile-time error.
+ * the value case and optionally ontemplate e for the error case. If not, it
+ * will result in a compile-time error.
  *
  * @note This function might be used as an expression or a statement, depending
  *      on whether the return type R is specified or deduced. Here is an
@@ -412,14 +338,14 @@ constexpr void Inspect(Opt &&, Lambdas &&...) {
 template <typename R = detail::deduce_return_type, typename Exp,
           typename... Lambdas,
           // 1. Is it expected(type)?
-          std::enable_if_t<traits::is_expected<Exp>::value, int> = 0,
-          // 2. Is Exhaustive? (Yes)
-          std::enable_if_t<
-              traits::is_exhaustive_expected<
-                  overloaded<detail::remove_cvref_t<Lambdas>...>, Exp>::value,
-              int> = 0>
+          std::enable_if_t<traits::is_expected<Exp>::value, int> = 0>
 [[nodiscard]]
 constexpr auto Inspect(Exp &&exp, Lambdas &&...lambdas) noexcept {
+
+  // --- validation start
+  using VisitorType = overloaded<detail::remove_cvref_t<Lambdas>...>;
+  diagnostic::expected_validator<VisitorType, Exp>::validate();
+  // --- validation end
 
   auto visitor = overloaded{std::forward<Lambdas>(lambdas)...};
   constexpr bool has_explicit_return_type =
@@ -440,33 +366,4 @@ constexpr auto Inspect(Exp &&exp, Lambdas &&...lambdas) noexcept {
   }
 }
 
-// --- SFINAE failure version: Handlers are INCOMPLETE (IsExhaustive == false)
-template <typename R = detail::deduce_return_type, typename Exp,
-          typename... Lambdas,
-          std::enable_if_t<traits::is_expected<Exp>::value, int> = 0,
-          std::enable_if_t<
-              !traits::is_exhaustive_expected<
-                  overloaded<detail::remove_cvref_t<Lambdas>...>, Exp>::value,
-              int> = 0>
-constexpr void Inspect(Exp &&, Lambdas &&...) {
-  using VisitorType = overloaded<detail::remove_cvref_t<Lambdas>...>;
-
-  diagnostic::expected_validator<VisitorType, Exp>::validate();
-}
-
-} // namespace algebraic_type
-
-#ifdef Inspect
-#error                                                                         \
-    "Someone has defined macro 'Inspect'! This is a reserved name for the ADT library."
-#endif
-
-/**
- * @brief Alias for algebraic_type::Inspect function.
- * @see algebraic_type::Inspect
- *
- * @note This alias is provided for convenience to avoid typing the full
- *       namespace each time. It has three overloads to handle std::variant,
- *       std::optional, and Expected/Result types.
- */
-using algebraic_type::Inspect;
+} // namespace adt

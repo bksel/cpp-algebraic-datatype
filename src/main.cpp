@@ -50,11 +50,11 @@ void test_variant() {
   std::variant<A, B, C> my_variant;
   my_variant = C{};
 
-  auto article = Inspect<std::string_view>(
+  auto article = adt::Inspect<std::string_view>(
       my_variant, [](A value) { return "an"; }, [](auto value) { return "a"; });
 
   std::cout << "It was " << article << ": "
-            << Inspect<char>(
+            << adt::Inspect<char>(
                    my_variant, [](A value) { return 'A'; },
                    [](B value) { return 'B'; }, [](C value) { return 'C'; })
             << std::endl;
@@ -65,13 +65,13 @@ void test_optional() {
   std::cout << "Testing Optional Inspect:" << std::endl;
   std::optional<int> my_opt = 42;
 
-  Inspect(
+  adt::Inspect(
       my_opt, [](int value) { std::cout << "Value: " << value << std::endl; },
       []() { std::cout << "No Value" << std::endl; });
 
   my_opt = std::nullopt;
   std::cout << "Optional contains: "
-            << Inspect<std::string>(
+            << adt::Inspect<std::string>(
                    my_opt,
                    [](int value) { return "Value: " + std::to_string(value); },
                    []() { return "No Value"; })
@@ -83,7 +83,7 @@ void test_result() {
 
   adt::Result<int, ErrorCode> my_result = adt::Ok(100);
   std::cout << "Result contains: "
-            << Inspect<std::string>(
+            << adt::Inspect<std::string>(
                    my_result,
                    [](int value) { return "Value: " + std::to_string(value); },
                    [](ErrorCode err) {
@@ -93,7 +93,7 @@ void test_result() {
 
   my_result = adt::Error(ErrorCode::ERROR_TWO);
   std::cout << "Result contains: ";
-  Inspect(
+  adt::Inspect(
       my_result,
       [](int value) { std::cout << "Value: " << value << std::endl; },
       [](ErrorCode err) {
@@ -104,7 +104,7 @@ void test_result() {
   // directly in order to avoid ambiguity
   adt::Result<int, int> another_result = adt::Ok(55);
   std::cout << "Another Result contains: "
-            << Inspect<std::string>(
+            << adt::Inspect<std::string>(
                    another_result,
                    [](adt::Ok<int> value) {
                      return "Value: " + std::to_string(value.get());
