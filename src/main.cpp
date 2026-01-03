@@ -7,15 +7,16 @@
  *        z C++23.
  *        Implementacja Inspect zapewnia w miarę czytelne komunikaty błędów
  *        w przypadku niepełnych handlerów (nieobsłużonych wariantów).
- *        Przystosowano to do standardu C++17, przez to ekstensywnie wykorzystywane
- *        są SFINAE zamiast konceptów. Dlatego użyto metody szablonów-pułapek,
- *        aby wymusić wyświetlanie komunikatów błędów tylko przy instancjalizacji
- *        funkcji Inspect, a nie wypluwać błędy ze środka implementacji.
+ *        Przystosowano to do standardu C++17, przez to ekstensywnie
+ * wykorzystywane są SFINAE zamiast konceptów. Dlatego użyto metody
+ * szablonów-pułapek, aby wymusić wyświetlanie komunikatów błędów tylko przy
+ * instancjalizacji funkcji Inspect, a nie wypluwać błędy ze środka
+ * implementacji.
  * @version 0.1
  * @date 2026-01-02
- * 
+ *
  * @copyright Copyright (c) 2026
- * 
+ *
  */
 #include <iostream>
 
@@ -80,7 +81,7 @@ void test_optional() {
 void test_result() {
   std::cout << "Testing Result Inspect:" << std::endl;
 
-  Result<int, ErrorCode> my_result = 100;
+  adt::Result<int, ErrorCode> my_result = adt::Ok(100);
   std::cout << "Result contains: "
             << Inspect<std::string>(
                    my_result,
@@ -90,7 +91,7 @@ void test_result() {
                    })
             << std::endl;
 
-  my_result = ErrorCode::ERROR_ONE;
+  my_result = adt::Error(ErrorCode::ERROR_TWO);
   std::cout << "Result contains: ";
   Inspect(
       my_result,
@@ -98,4 +99,18 @@ void test_result() {
       [](ErrorCode err) {
         std::cout << "Error: " << static_cast<int>(err) << std::endl;
       });
+
+  // Test with same type for Value and Error, now handling Ok<T> and Error<E>
+  // directly in order to avoid ambiguity
+  adt::Result<int, int> another_result = adt::Ok(55);
+  std::cout << "Another Result contains: "
+            << Inspect<std::string>(
+                   another_result,
+                   [](adt::Ok<int> value) {
+                     return "Value: " + std::to_string(value.get());
+                   },
+                   [](adt::Error<int> err) {
+                     return "Error: " + std::to_string(err.get());
+                   })
+            << std::endl;
 }
