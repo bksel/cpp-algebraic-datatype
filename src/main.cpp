@@ -34,6 +34,8 @@ void test_optional();
 void test_result();
 
 void test_reference_to_optional();
+void test_reference_to_variant();
+void test_reference_to_result();
 
 int main() {
   std::cout << "Hello, World!" << std::endl;
@@ -42,7 +44,9 @@ int main() {
   test_optional();
   test_result();
 
+  test_reference_to_variant();
   test_reference_to_optional();
+  test_reference_to_result();
 
   return 0;
 }
@@ -145,4 +149,46 @@ void test_reference_to_optional() {
                    []() { return "Referenced Optional is empty."; })
             << std::endl;
 
+}
+
+void test_reference_to_variant() {
+  std::cout << "Testing Reference to Variant Inspect:" << std::endl;
+  std::variant<A, B, C> my_variant;
+  my_variant = C{};
+  std::variant<A, B, C> &ref_variant = my_variant;
+
+  auto article = adt::Inspect<std::string_view>(
+      ref_variant, [](A& value) { return "an"; }, [](auto value) { return "a"; });
+
+  std::cout << "It was " << article << ": "
+            << adt::Inspect<char>(
+                   ref_variant, 
+                   [](A& value) { return 'A'; },
+                   [](B& value) { return 'B'; }, [](C& value) { return 'C'; })
+            << std::endl;
+}
+
+void test_reference_to_result() {
+  // std::cout << "Testing Reference to Result Inspect:" << std::endl;
+
+  // adt::Result<int, ErrorCode> my_result = adt::Ok(100);
+  // adt::Result<int, ErrorCode> &ref_result = my_result;
+
+  // std::cout << "Result contains: "
+  //           << adt::Inspect<std::string>(
+  //                  ref_result,
+  //                  [](int value) { return "Value: " + std::to_string(value); },
+  //                  [](ErrorCode err) {
+  //                    return "Error: " + std::to_string(static_cast<int>(err));
+  //                  })
+  //           << std::endl;
+
+  // ref_result = adt::Error(ErrorCode::ERROR_TWO);
+  // std::cout << "Result contains: ";
+  // adt::Inspect(
+  //     ref_result,
+  //     [](int value) { std::cout << "Value: " << value << std::endl; },
+  //     [](ErrorCode err) {
+  //       std::cout << "Error: " << static_cast<int>(err) << std::endl;
+  //     });
 }
