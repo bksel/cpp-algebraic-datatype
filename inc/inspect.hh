@@ -76,7 +76,8 @@ template <typename T> struct MISSING_HANDLER_FOR_NONE {
 template <typename Visitor, typename Opt> struct optional_validator {
 
   static constexpr void validate() {
-    using ValueType = typename detail::remove_cvref_t<Opt>::value_type;
+    // using ValueType = typename detail::remove_cvref_t<Opt>::value_type;
+    using ValueType = decltype(*std::declval<Opt>());
 
     constexpr bool handles_value = std::is_invocable_v<Visitor, ValueType>;
 
@@ -272,9 +273,11 @@ template <typename R = detail::deduce_return_type, typename Opt,
 [[nodiscard]]
 constexpr auto Inspect(Opt &&opt, Lambdas &&...lambdas) noexcept {
 
-  using VisitorType = overloaded<detail::remove_cvref_t<Lambdas>...>;
+  // using VisitorType = overloaded<detail::remove_cvref_t<Lambdas>...>;
+  using VisitorType = overloaded<Lambdas...>;
 
-  using RawOpt = detail::remove_cvref_t<Opt>;
+  // using RawOpt = detail::remove_cvref_t<Opt>;
+  using RawOpt = decltype(std::declval<Opt>());
   diagnostic::optional_validator<VisitorType, RawOpt>::validate();
 
   auto visitor = VisitorType{std::forward<Lambdas>(lambdas)...};

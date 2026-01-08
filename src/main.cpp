@@ -33,12 +33,16 @@ void test_variant();
 void test_optional();
 void test_result();
 
+void test_reference_to_optional();
+
 int main() {
   std::cout << "Hello, World!" << std::endl;
 
   test_variant();
   test_optional();
   test_result();
+
+  test_reference_to_optional();
 
   return 0;
 }
@@ -113,4 +117,32 @@ void test_result() {
                      return "Error: " + std::to_string(err.get());
                    })
             << std::endl;
+}
+
+void test_reference_to_optional() {
+
+  std::cout << "Testing Reference to Optional Inspect:" << std::endl;
+
+  std::optional<std::string> str_opt = "Hello, Inspect!";
+  std::optional<std::string> &ref_opt = str_opt;
+
+  // Question: Why does const reference work, while non-const does not?
+  adt::Inspect(
+      ref_opt,
+      [](std::string &value) {
+        std::cout << "Referenced Value: " << value << std::endl;
+      },
+      []() { std::cout << "Referenced Optional is empty." << std::endl; });
+
+  ref_opt = std::nullopt;
+
+  std::cout << "After resetting the referenced optional: "
+            << adt::Inspect<std::string>(
+                   ref_opt,
+                   [](const std::string &value) {
+                     return "Referenced Value: " + value;
+                   },
+                   []() { return "Referenced Optional is empty."; })
+            << std::endl;
+
 }
