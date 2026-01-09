@@ -47,24 +47,17 @@ template <typename T> struct MISSING_HANDLER_FOR_TYPE {
 
 template <typename Visitor, typename Variant> struct variant_validator;
 
-template <typename Visitor, typename Variant>
-struct variant_validator {
+template <typename Visitor, typename Variant> struct variant_validator {
 
   using CleanVariant = std::remove_reference_t<Variant>;
 
   template <std::size_t I> static constexpr void validate_alternative() {
-    // Magia: std::get<I>(Variant&&) automatycznie zwraca:
-    // - T&       jeśli Variant to l-value reference
-    // - const T& jeśli Variant to const l-value reference
-    // - T&&      jeśli Variant to r-value reference
-    // Dzięki temu decltype precyzyjnie ustala typ, który dostanie Visitor.
     using ArgType = decltype(std::get<I>(std::declval<Variant>()));
 
     if constexpr (!std::is_invocable_v<Visitor, ArgType>) {
-      // Używamy std::decay_t tylko do wyświetlenia czytelnego błędu (bez &)
-      static_assert(MISSING_HANDLER_FOR_TYPE<std::decay_t<ArgType>>::value,
-                    "❌ INSPECT ERROR: Nie obsłużyłeś jednego z typów "
-                    "wariantu! (Typ widać w 'note' poniżej)");
+      static_assert(
+          MISSING_HANDLER_FOR_TYPE<std::decay_t<ArgType>>::value,
+          "❌ INSPECT ERROR: yiu did not provide a handler for type ->");
     }
   }
 
