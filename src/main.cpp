@@ -81,7 +81,7 @@ void test_optional() {
   std::cout << "Optional contains: "
             << adt::Inspect<std::string>(
                    my_opt,
-                   [](int value) { return "Value: " + std::to_string(value); },
+                   [](auto value) { return "Value: " + std::to_string(value); },
                    []() { return "No Value"; })
             << std::endl;
 }

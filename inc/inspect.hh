@@ -226,8 +226,7 @@ template <typename R = detail::deduce_return_type,
 [[nodiscard]]
 constexpr auto Inspect(Variant &&variant, Lambdas &&...lambdas) {
   // --- validation start
-  // using VisitorType = overloaded<detail::remove_cvref_t<Lambdas>...>;
-  using VisitorType = overloaded<Lambdas...>;
+  using VisitorType = overloaded<detail::remove_cvref_t<Lambdas>...>;
   // using RawVariant = detail::remove_cvref_t<Variant>;
   using RawVariant = decltype(std::declval<Variant>());
   diagnostic::variant_validator<VisitorType, RawVariant>::validate();
@@ -284,8 +283,7 @@ template <typename R = detail::deduce_return_type, typename Opt,
 [[nodiscard]]
 constexpr auto Inspect(Opt &&opt, Lambdas &&...lambdas) noexcept {
 
-  // using VisitorType = overloaded<detail::remove_cvref_t<Lambdas>...>;
-  using VisitorType = overloaded<Lambdas...>;
+  using VisitorType = overloaded<detail::remove_cvref_t<Lambdas>...>;
 
   // using RawOpt = detail::remove_cvref_t<Opt>;
   using RawOpt = decltype(std::declval<Opt>());
