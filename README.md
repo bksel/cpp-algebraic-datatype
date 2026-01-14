@@ -27,6 +27,176 @@ void test_variant() {
 }
 ```
 
+### The real reason for using it
+
+The underlying mechanism for this function is the _overloaded visitor_ pattern. It is a really powerful way of dealing with `std::variant`, it however provides really bad error messages, that show all the insides of standard library, in case if one variant is not handled. The `adt::Inspect` solves this issue by checking if all handlers were provided, error is checked prior to calling standard library functions, thus providing a clear error message. Let us "forget" to handle one variant:
+```c++
+  std::cout << "It was " << article << ": "
+            << adt::Inspect<char>(
+                   my_variant,
+                   [](A value) { return 'A'; },
+                  //  [](B value) { return 'B'; },
+                   [](C value) { return 'C'; })
+            << std::endl;
+
+``` 
+This is what we would get should it be only syntactic sugar for _overloaded visitor pattern_:
+
+<details>
+  <summary>Click to expand compilation logs without prior checks</summary>
+
+```
+In file included from /usr/include/c++/13/bits/move.h:37,
+                 from /usr/include/c++/13/bits/exception_ptr.h:41,
+                 from /usr/include/c++/13/exception:164,
+                 from /usr/include/c++/13/ios:41,
+                 from /usr/include/c++/13/ostream:40,
+                 from /usr/include/c++/13/iostream:41,
+                 from ../src/main.cpp:21:
+/usr/include/c++/13/type_traits: In substitution of ‘template<class _Fn, class ... _Args> using std::invoke_result_t = typename std::invoke_result::type [with _Fn = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Args = {B&}]’:
+/usr/include/c++/13/variant:1131:14:   required from ‘constexpr bool std::__detail::__variant::__check_visitor_results(std::index_sequence<_Idx ...>) [with _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variant = std::variant<A, B, C>&; long unsigned int ..._Idxs = {0, 1, 2}; std::index_sequence<_Idx ...> = std::integer_sequence<long unsigned int, 0, 1, 2>]’
+/usr/include/c++/13/variant:1868:44:   required from ‘constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variants = {variant<A, B, C>&}; __detail::__variant::__visit_result_t<_Visitor, _Variants ...> = char]’
+../inc/inspect.hh:233:24:   required from ‘constexpr auto adt::Inspect(Variant&&, Lambdas&& ...) [with R = char; Variant = std::variant<A, B, C>&; Lambdas = {test_variant()::<lambda(A)>, test_variant()::<lambda(C)>}; typename std::enable_if<traits::is_variant<Variant>::value, int>::type <anonymous> = 0]’
+../src/main.cpp:65:34:   required from here
+/usr/include/c++/13/type_traits:3073:11: error: no type named ‘type’ in ‘struct std::invoke_result<adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >, B&>’
+ 3073 |     using invoke_result_t = typename invoke_result<_Fn, _Args...>::type;
+      |           ^~~~~~~~~~~~~~~
+In file included from ../inc/inspect.hh:18:
+/usr/include/c++/13/variant: In instantiation of ‘constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variants = {variant<A, B, C>&}; __detail::__variant::__visit_result_t<_Visitor, _Variants ...> = char]’:
+../inc/inspect.hh:233:24:   required from ‘constexpr auto adt::Inspect(Variant&&, Lambdas&& ...) [with R = char; Variant = std::variant<A, B, C>&; Lambdas = {test_variant()::<lambda(A)>, test_variant()::<lambda(C)>}; typename std::enable_if<traits::is_variant<Variant>::value, int>::type <anonymous> = 0]’
+../src/main.cpp:65:34:   required from here
+/usr/include/c++/13/variant:1868:44:   in ‘constexpr’ expansion of ‘std::__detail::__variant::__check_visitor_results<adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >, std::variant<A, B, C>&, 0, 1, 2>((std::make_index_sequence<3>(), std::make_index_sequence<3>()))’
+/usr/include/c++/13/variant:1867:26: error: ‘constexpr’ call flows off the end of the function
+ 1867 |           constexpr bool __visit_rettypes_match = __detail::__variant::
+      |                          ^~~~~~~~~~~~~~~~~~~~~~
+/usr/include/c++/13/variant:1872:29: error: non-constant condition for static assertion
+ 1872 |               static_assert(__visit_rettypes_match,
+      |                             ^~~~~~~~~~~~~~~~~~~~~~
+/usr/include/c++/13/variant:1875:15: error: return-statement with no value, in function returning ‘std::__detail::__variant::__visit_result_t<adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >, std::variant<A, B, C>&>’ {aka ‘char’} [-fpermissive]
+ 1875 |               return;
+      |               ^~~~~~
+/usr/include/c++/13/variant: In instantiation of ‘static constexpr decltype(auto) std::__detail::__variant::__gen_vtable_impl<std::__detail::__variant::_Multi_array<_Result_type (*)(_Visitor, _Variants ...)>, std::integer_sequence<long unsigned int, __indices ...> >::__visit_invoke(_Visitor&&, _Variants ...) [with _Result_type = std::__detail::__variant::__deduce_visit_result<char>; _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >&&; _Variants = {std::variant<A, B, C>&}; long unsigned int ...__indices = {1}]’:
+/usr/include/c++/13/variant:1816:5:   required from ‘constexpr decltype(auto) std::__do_visit(_Visitor&&, _Variants&& ...) [with _Result_type = __detail::__variant::__deduce_visit_result<char>; _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variants = {variant<A, B, C>&}]’
+/usr/include/c++/13/variant:1878:34:   required from ‘constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variants = {variant<A, B, C>&}; __detail::__variant::__visit_result_t<_Visitor, _Variants ...> = char]’
+../inc/inspect.hh:233:24:   required from ‘constexpr auto adt::Inspect(Variant&&, Lambdas&& ...) [with R = char; Variant = std::variant<A, B, C>&; Lambdas = {test_variant()::<lambda(A)>, test_variant()::<lambda(C)>}; typename std::enable_if<traits::is_variant<Variant>::value, int>::type <anonymous> = 0]’
+../src/main.cpp:65:34:   required from here
+/usr/include/c++/13/variant:1060:31: error: no matching function for call to ‘__invoke(adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >, B&)’
+ 1060 |           return std::__invoke(std::forward<_Visitor>(__visitor),
+      |                  ~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1061 |               __element_by_index_or_cookie<__indices>(
+      |               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1062 |                 std::forward<_Variants>(__vars))...);
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/c++/13/bits/refwrap.h:38,
+                 from /usr/include/c++/13/string:52,
+                 from /usr/include/c++/13/bits/locale_classes.h:40,
+                 from /usr/include/c++/13/bits/ios_base.h:41,
+                 from /usr/include/c++/13/ios:44:
+/usr/include/c++/13/bits/invoke.h:90:5: note: candidate: ‘template<class _Callable, class ... _Args> constexpr typename std::__invoke_result<_Functor, _ArgTypes>::type std::__invoke(_Callable&&, _Args&& ...)’
+   90 |     __invoke(_Callable&& __fn, _Args&&... __args)
+      |     ^~~~~~~~
+/usr/include/c++/13/bits/invoke.h:90:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/13/bits/invoke.h: In substitution of ‘template<class _Callable, class ... _Args> constexpr typename std::__invoke_result<_Functor, _ArgTypes>::type std::__invoke(_Callable&&, _Args&& ...) [with _Callable = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Args = {B&}]’:
+/usr/include/c++/13/variant:1060:24:   required from ‘static constexpr decltype(auto) std::__detail::__variant::__gen_vtable_impl<std::__detail::__variant::_Multi_array<_Result_type (*)(_Visitor, _Variants ...)>, std::integer_sequence<long unsigned int, __indices ...> >::__visit_invoke(_Visitor&&, _Variants ...) [with _Result_type = std::__detail::__variant::__deduce_visit_result<char>; _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >&&; _Variants = {std::variant<A, B, C>&}; long unsigned int ...__indices = {1}]’
+/usr/include/c++/13/variant:1816:5:   required from ‘constexpr decltype(auto) std::__do_visit(_Visitor&&, _Variants&& ...) [with _Result_type = __detail::__variant::__deduce_visit_result<char>; _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variants = {variant<A, B, C>&}]’
+/usr/include/c++/13/variant:1878:34:   required from ‘constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variants = {variant<A, B, C>&}; __detail::__variant::__visit_result_t<_Visitor, _Variants ...> = char]’
+../inc/inspect.hh:233:24:   required from ‘constexpr auto adt::Inspect(Variant&&, Lambdas&& ...) [with R = char; Variant = std::variant<A, B, C>&; Lambdas = {test_variant()::<lambda(A)>, test_variant()::<lambda(C)>}; typename std::enable_if<traits::is_variant<Variant>::value, int>::type <anonymous> = 0]’
+../src/main.cpp:65:34:   required from here
+/usr/include/c++/13/bits/invoke.h:90:5: error: no type named ‘type’ in ‘struct std::__invoke_result<adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >, B&>’
+ninja: build stopped: subcommand failed.
+error: Recipe `build` failed on line 9 with exit code 1
+```
+</details>
+
+
+<details>
+  <summary>Click to expand compilation logs with prior checks</summary>
+  
+```
+In file included from /usr/include/c++/13/bits/move.h:37,
+                 from /usr/include/c++/13/bits/exception_ptr.h:41,
+                 from /usr/include/c++/13/exception:164,
+                 from /usr/include/c++/13/ios:41,
+                 from /usr/include/c++/13/ostream:40,
+                 from /usr/include/c++/13/iostream:41,
+                 from ../src/main.cpp:21:
+/usr/include/c++/13/type_traits: In substitution of ‘template<class _Fn, class ... _Args> using std::invoke_result_t = typename std::invoke_result::type [with _Fn = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Args = {B&}]’:
+/usr/include/c++/13/variant:1131:14:   required from ‘constexpr bool std::__detail::__variant::__check_visitor_results(std::index_sequence<_Idx ...>) [with _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variant = std::variant<A, B, C>&; long unsigned int ..._Idxs = {0, 1, 2}; std::index_sequence<_Idx ...> = std::integer_sequence<long unsigned int, 0, 1, 2>]’
+/usr/include/c++/13/variant:1868:44:   required from ‘constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variants = {variant<A, B, C>&}; __detail::__variant::__visit_result_t<_Visitor, _Variants ...> = char]’
+../inc/inspect.hh:233:24:   required from ‘constexpr auto adt::Inspect(Variant&&, Lambdas&& ...) [with R = char; Variant = std::variant<A, B, C>&; Lambdas = {test_variant()::<lambda(A)>, test_variant()::<lambda(C)>}; typename std::enable_if<traits::is_variant<Variant>::value, int>::type <anonymous> = 0]’
+../src/main.cpp:65:34:   required from here
+/usr/include/c++/13/type_traits:3073:11: error: no type named ‘type’ in ‘struct std::invoke_result<adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >, B&>’
+ 3073 |     using invoke_result_t = typename invoke_result<_Fn, _Args...>::type;
+      |           ^~~~~~~~~~~~~~~
+In file included from ../inc/inspect.hh:18,
+                 from ../src/main.cpp:23:
+/usr/include/c++/13/variant: In instantiation of ‘constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variants = {variant<A, B, C>&}; __detail::__variant::__visit_result_t<_Visitor, _Variants ...> = char]’:
+../inc/inspect.hh:233:24:   required from ‘constexpr auto adt::Inspect(Variant&&, Lambdas&& ...) [with R = char; Variant = std::variant<A, B, C>&; Lambdas = {test_variant()::<lambda(A)>, test_variant()::<lambda(C)>}; typename std::enable_if<traits::is_variant<Variant>::value, int>::type <anonymous> = 0]’
+../src/main.cpp:65:34:   required from here
+/usr/include/c++/13/variant:1868:44:   in ‘constexpr’ expansion of ‘std::__detail::__variant::__check_visitor_results<adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >, std::variant<A, B, C>&, 0, 1, 2>((std::make_index_sequence<3>(), std::make_index_sequence<3>()))’
+/usr/include/c++/13/variant:1867:26: error: ‘constexpr’ call flows off the end of the function
+ 1867 |           constexpr bool __visit_rettypes_match = __detail::__variant::
+      |                          ^~~~~~~~~~~~~~~~~~~~~~
+/usr/include/c++/13/variant:1872:29: error: non-constant condition for static assertion
+ 1872 |               static_assert(__visit_rettypes_match,
+      |                             ^~~~~~~~~~~~~~~~~~~~~~
+/usr/include/c++/13/variant:1875:15: error: return-statement with no value, in function returning ‘std::__detail::__variant::__visit_result_t<adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >, std::variant<A, B, C>&>’ {aka ‘char’} [-fpermissive]
+ 1875 |               return;
+      |               ^~~~~~
+/usr/include/c++/13/variant: In instantiation of ‘static constexpr decltype(auto) std::__detail::__variant::__gen_vtable_impl<std::__detail::__variant::_Multi_array<_Result_type (*)(_Visitor, _Variants ...)>, std::integer_sequence<long unsigned int, __indices ...> >::__visit_invoke(_Visitor&&, _Variants ...) [with _Result_type = std::__detail::__variant::__deduce_visit_result<char>; _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >&&; _Variants = {std::variant<A, B, C>&}; long unsigned int ...__indices = {1}]’:
+/usr/include/c++/13/variant:1816:5:   required from ‘constexpr decltype(auto) std::__do_visit(_Visitor&&, _Variants&& ...) [with _Result_type = __detail::__variant::__deduce_visit_result<char>; _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variants = {variant<A, B, C>&}]’
+/usr/include/c++/13/variant:1878:34:   required from ‘constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variants = {variant<A, B, C>&}; __detail::__variant::__visit_result_t<_Visitor, _Variants ...> = char]’
+../inc/inspect.hh:233:24:   required from ‘constexpr auto adt::Inspect(Variant&&, Lambdas&& ...) [with R = char; Variant = std::variant<A, B, C>&; Lambdas = {test_variant()::<lambda(A)>, test_variant()::<lambda(C)>}; typename std::enable_if<traits::is_variant<Variant>::value, int>::type <anonymous> = 0]’
+../src/main.cpp:65:34:   required from here
+/usr/include/c++/13/variant:1060:31: error: no matching function for call to ‘__invoke(adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >, B&)’
+ 1060 |           return std::__invoke(std::forward<_Visitor>(__visitor),
+      |                  ~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1061 |               __element_by_index_or_cookie<__indices>(
+      |               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1062 |                 std::forward<_Variants>(__vars))...);
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/c++/13/bits/refwrap.h:38,
+                 from /usr/include/c++/13/string:52,
+                 from /usr/include/c++/13/bits/locale_classes.h:40,
+                 from /usr/include/c++/13/bits/ios_base.h:41,
+                 from /usr/include/c++/13/ios:44:
+/usr/include/c++/13/bits/invoke.h:90:5: note: candidate: ‘template<class _Callable, class ... _Args> constexpr typename std::__invoke_result<_Functor, _ArgTypes>::type std::__invoke(_Callable&&, _Args&& ...)’
+   90 |     __invoke(_Callable&& __fn, _Args&&... __args)
+      |     ^~~~~~~~
+/usr/include/c++/13/bits/invoke.h:90:5: note:   template argument deduction/substitution failed:
+/usr/include/c++/13/bits/invoke.h: In substitution of ‘template<class _Callable, class ... _Args> constexpr typename std::__invoke_result<_Functor, _ArgTypes>::type std::__invoke(_Callable&&, _Args&& ...) [with _Callable = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Args = {B&}]’:
+/usr/include/c++/13/variant:1060:24:   required from ‘static constexpr decltype(auto) std::__detail::__variant::__gen_vtable_impl<std::__detail::__variant::_Multi_array<_Result_type (*)(_Visitor, _Variants ...)>, std::integer_sequence<long unsigned int, __indices ...> >::__visit_invoke(_Visitor&&, _Variants ...) [with _Result_type = std::__detail::__variant::__deduce_visit_result<char>; _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >&&; _Variants = {std::variant<A, B, C>&}; long unsigned int ...__indices = {1}]’
+/usr/include/c++/13/variant:1816:5:   required from ‘constexpr decltype(auto) std::__do_visit(_Visitor&&, _Variants&& ...) [with _Result_type = __detail::__variant::__deduce_visit_result<char>; _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variants = {variant<A, B, C>&}]’
+/usr/include/c++/13/variant:1878:34:   required from ‘constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; _Variants = {variant<A, B, C>&}; __detail::__variant::__visit_result_t<_Visitor, _Variants ...> = char]’
+../inc/inspect.hh:233:24:   required from ‘constexpr auto adt::Inspect(Variant&&, Lambdas&& ...) [with R = char; Variant = std::variant<A, B, C>&; Lambdas = {test_variant()::<lambda(A)>, test_variant()::<lambda(C)>}; typename std::enable_if<traits::is_variant<Variant>::value, int>::type <anonymous> = 0]’
+../src/main.cpp:65:34:   required from here
+/usr/include/c++/13/bits/invoke.h:90:5: error: no type named ‘type’ in ‘struct std::__invoke_result<adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >, B&>’
+../inc/inspect.hh: In instantiation of ‘static constexpr void adt::diagnostic::variant_validator<Visitor, Variant>::validate_alternative() [with long unsigned int I = 1; Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; Variant = std::variant<A, B, C>&]’:
+../inc/inspect.hh:66:30:   required from ‘static constexpr void adt::diagnostic::variant_validator<Visitor, Variant>::validate_all(std::index_sequence<_Ind ...>) [with long unsigned int ...Is = {0, 1, 2}; Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; Variant = std::variant<A, B, C>&; std::index_sequence<_Ind ...> = std::integer_sequence<long unsigned int, 0, 1, 2>]’
+../inc/inspect.hh:70:17:   required from ‘static constexpr void adt::diagnostic::variant_validator<Visitor, Variant>::validate() [with Visitor = adt::overloaded<test_variant()::<lambda(A)>, test_variant()::<lambda(C)> >; Variant = std::variant<A, B, C>&]’
+../inc/inspect.hh:225:67:   required from ‘constexpr auto adt::Inspect(Variant&&, Lambdas&& ...) [with R = char; Variant = std::variant<A, B, C>&; Lambdas = {test_variant()::<lambda(A)>, test_variant()::<lambda(C)>}; typename std::enable_if<traits::is_variant<Variant>::value, int>::type <anonymous> = 0]’
+../src/main.cpp:65:34:   required from here
+../inc/inspect.hh:59:60: error: static assertion failed: ❌ INSPECT ERROR: you did not provide a handler for type ->
+   59 |           MISSING_HANDLER_FOR_TYPE<std::decay_t<ArgType>>::value,
+      |                                                            ^~~~~
+../inc/inspect.hh:59:60: note: ‘adt::diagnostic::MISSING_HANDLER_FOR_TYPE<B>::value’ evaluates to false
+ninja: build stopped: subcommand failed.
+```
+</details>
+
+The difference is this simple log, that greatly reduces effort of searching for the cause, a short, explicit message:
+```
+../inc/inspect.hh:225:67:   required from ‘constexpr auto adt::Inspect(Variant&&, Lambdas&& ...) [with R = char; Variant = std::variant<A, B, C>&; Lambdas = {test_variant()::<lambda(A)>, test_variant()::<lambda(C)>}; typename std::enable_if<traits::is_variant<Variant>::value, int>::type <anonymous> = 0]’
+../src/main.cpp:65:34:   required from here
+../inc/inspect.hh:59:60: error: static assertion failed: ❌ INSPECT ERROR: you did not provide a handler for type ->
+   59 |           MISSING_HANDLER_FOR_TYPE<std::decay_t<ArgType>>::value,
+      |                                                            ^~~~~
+../inc/inspect.hh:59:60: note: ‘adt::diagnostic::MISSING_HANDLER_FOR_TYPE<B>::value’ evaluates to false
+ninja: build stopped: subcommand failed.
+```
+
+### Further examples
+
 Another important class that might need to be analysed in similar fashion is `std::optional`. Here the task is simpler -- you only need to handle two cases. An example below:
 ```c++
 void test_optional() {

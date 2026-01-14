@@ -57,7 +57,7 @@ template <typename Visitor, typename Variant> struct variant_validator {
     if constexpr (!std::is_invocable_v<Visitor, ArgType>) {
       static_assert(
           MISSING_HANDLER_FOR_TYPE<std::decay_t<ArgType>>::value,
-          "❌ INSPECT ERROR: yiu did not provide a handler for type ->");
+          "❌ INSPECT ERROR: you did not provide a handler for type ->");
     }
   }
 
@@ -85,7 +85,7 @@ template <typename Visitor, typename Opt> struct optional_validator {
 
     if constexpr (!handles_value) {
       static_assert(always_false<ValueType>::value,
-                    "ALGEBRAIC ERROR: Inspect for optional does not handle the "
+                    "❌ ALGEBRAIC ERROR: Inspect for optional does not handle the "
                     "value type!");
       static_assert(MISSING_HANDLER_FOR_TYPE<ValueType>::value,
                     "Missing handler for type ->");
@@ -95,7 +95,7 @@ template <typename Visitor, typename Opt> struct optional_validator {
 
     if constexpr (!handles_none) {
       static_assert(always_false<Opt>::value,
-                    "ALGEBRAIC ERROR: Inspect for optional does not handle the "
+                    "❌ ALGEBRAIC ERROR: Inspect for optional does not handle the "
                     "empty state (None)!");
       static_assert(MISSING_HANDLER_FOR_NONE<Opt>::value,
                     "You need to provide no-argument lambda: []() { ... }");
@@ -114,7 +114,7 @@ template <typename Visitor, typename Exp> struct expected_validator {
     constexpr bool handles_value = std::is_invocable_v<Visitor, ValT>;
     if constexpr (!handles_value) {
       static_assert(always_false<ValT>::value,
-                    "ALGEBRAIC ERROR: Inspect for Result does not handle the "
+                    "❌ ALGEBRAIC ERROR: Inspect for Result does not handle the "
                     "success type!");
       static_assert(MISSING_HANDLER_FOR_TYPE<ValT>::value,
                     "Missing handler for value ->");
@@ -123,7 +123,7 @@ template <typename Visitor, typename Exp> struct expected_validator {
     constexpr bool handles_error = std::is_invocable_v<Visitor, ErrT>;
     if constexpr (!handles_error) {
       static_assert(always_false<ErrT>::value,
-                    "ALGEBRAIC ERROR: Inspect for Result does not handle the "
+                    "❌ ALGEBRAIC ERROR: Inspect for Result does not handle the "
                     "error type!");
 
       static_assert(MISSING_HANDLER_FOR_TYPE<ErrT>::value,
